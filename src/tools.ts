@@ -27,6 +27,10 @@ const libraryStatusSchema = z.enum([
   "did_not_finish",
   "ignored",
 ]);
+const libraryStatusFilterSchema = z.union([
+  libraryStatusSchema,
+  z.array(libraryStatusSchema).max(4),
+]);
 
 const listPrivacySchema = z.enum(["public", "followers_only", "private"]);
 const activityFeedModeSchema = z.enum(["for_you", "global", "user"]);
@@ -1812,7 +1816,7 @@ export function registerHardcoverTools(
         id: z.number().int().positive().optional(),
         username: z.string().min(1).optional(),
         me: z.boolean().optional(),
-        status: z.array(libraryStatusSchema).max(4).optional(),
+        status: libraryStatusFilterSchema.optional(),
         limit: z.number().int().min(1).max(25).default(10),
         offset: z.number().int().min(0).max(200).default(0),
       },
@@ -1821,9 +1825,10 @@ export function registerHardcoverTools(
     },
     async ({ id, username, me, status, limit, offset }) => {
       const userId = await resolveUserId(client, { id, username, me });
+      const statuses = Array.isArray(status) ? status : status ? [status] : [];
 
-      const statusFilter = status?.length
-        ? { status_id: { _in: status.map(mapStatusToId) } }
+      const statusFilter = statuses.length
+        ? { status_id: { _in: statuses.map(mapStatusToId) } }
         : {};
 
       const response = await client.query<UserBooksResponse>(
@@ -1875,7 +1880,7 @@ export function registerHardcoverTools(
       return makeTextResult("Hardcover user library", {
         limit,
         offset,
-        status: status ?? [],
+        status: statuses,
         userId,
         userBooks: response.user_books,
       });
