@@ -122,5 +122,6 @@ HARDCOVER_API_TOKEN="Bearer <token from hardcover.app/account/api>" npm run smok
 - Default endpoint: `https://api.hardcover.app/v1/graphql`
 - Override the endpoint with `HARDCOVER_API_URL`
 - Hardcover documents a 60 requests/minute rate limit and a maximum query depth of 3
+- Ambiguous exact-name lookups for authors and series may include `_selection.alternatives` in the response so callers can refine by `id` or `slug`
 - CI runs `npm run check` on pushes to `master` and on pull requests
 - List privacy values in the MCP tools are `public`, `followers_only`, and `private`
