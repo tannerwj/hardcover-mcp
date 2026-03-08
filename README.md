@@ -87,6 +87,14 @@ The current surface mixes read tools with focused write tools for lists, user-li
 npm start
 ```
 
+## Install via npm
+
+Run directly with `npx`:
+
+```bash
+npx -y hardcover-mcp
+```
+
 ## Validate locally
 
 Run the offline smoke test to verify the built server starts and registers the expected tools:
@@ -103,6 +111,24 @@ HARDCOVER_API_TOKEN="Bearer <token from hardcover.app/account/api>" npm run smok
 
 ## Example MCP client config
 
+Using the published npm package:
+
+```json
+{
+  "mcpServers": {
+    "hardcover": {
+      "command": "npx",
+      "args": ["-y", "hardcover-mcp"],
+      "env": {
+        "HARDCOVER_API_TOKEN": "Bearer YOUR_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+Using a local checkout:
+
 ```json
 {
   "mcpServers": {
@@ -110,7 +136,7 @@ HARDCOVER_API_TOKEN="Bearer <token from hardcover.app/account/api>" npm run smok
       "command": "node",
       "args": ["/absolute/path/to/hardcover-mcp/dist/index.js"],
       "env": {
-        "HARDCOVER_API_TOKEN": "Bearer <token from hardcover.app/account/api>"
+        "HARDCOVER_API_TOKEN": "Bearer YOUR_TOKEN_HERE"
       }
     }
   }
