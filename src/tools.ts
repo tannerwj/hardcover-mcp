@@ -762,6 +762,10 @@ function requireAtLeastOneDefined(
   }
 }
 
+function hasAnyDefined(values: Array<unknown>): boolean {
+  return values.some((value) => value !== undefined && value !== null);
+}
+
 function requireSingleSelector(
   selectors: Array<[name: string, value: unknown]>,
 ): [string, string | number | boolean] {
@@ -1496,6 +1500,10 @@ export function registerHardcoverTools(
       annotations: toolAnnotations,
     },
     async ({ id, username, me }) => {
+      if (!hasAnyDefined([id, username, me])) {
+        me = true;
+      }
+
       const [selector, value] = requireSingleSelector([
         ["id", id],
         ["username", username],
@@ -1824,6 +1832,10 @@ export function registerHardcoverTools(
       annotations: toolAnnotations,
     },
     async ({ id, username, me, status, limit, offset }) => {
+      if (!hasAnyDefined([id, username, me])) {
+        me = true;
+      }
+
       const userId = await resolveUserId(client, { id, username, me });
       const statuses = Array.isArray(status) ? status : status ? [status] : [];
 
