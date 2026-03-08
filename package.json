@@ -1,0 +1,54 @@
+{
+  "name": "hardcover-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for the Hardcover GraphQL API.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tannerwj/hardcover-mcp.git"
+  },
+  "homepage": "https://github.com/tannerwj/hardcover-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/tannerwj/hardcover-mcp/issues"
+  },
+  "bin": {
+    "hardcover-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "mcp-client.config.example.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "npm run build && npm run smoke:tools",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run check",
+    "smoke:live": "node ./scripts/smoke-live.mjs",
+    "smoke:tools": "node ./scripts/smoke-tools.mjs",
+    "start": "node dist/index.js",
+    "prepare": "npm run build",
+    "test": "npm run check"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "books",
+    "graphql",
+    "hardcover",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2"
+  }
+}

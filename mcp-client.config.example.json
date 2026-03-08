@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "hardcover": {
+      "command": "node",
+      "args": ["/absolute/path/to/hardcover-mcp/dist/index.js"],
+      "env": {
+        "HARDCOVER_API_TOKEN": "paste-token-here",
+        "HARDCOVER_API_URL": "https://api.hardcover.app/v1/graphql"
+      }
+    }
+  }
+}
