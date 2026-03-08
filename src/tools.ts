@@ -231,12 +231,20 @@ const AUTHOR_FIELDS = /* GraphQL */ `
   name
   bio
   books_count
+  users_count
+  canonical_id
+  state
   born_date
   born_year
   death_date
   death_year
   is_bipoc
   is_lgbtq
+  canonical {
+    id
+    slug
+    name
+  }
   contributions(limit: $booksLimit, order_by: { created_at: desc }) {
     contribution
     book {
@@ -333,9 +341,15 @@ const SERIES_FIELDS = /* GraphQL */ `
   description
   books_count
   primary_books_count
+  canonical_id
   is_completed
   identifiers
   state
+  canonical {
+    id
+    slug
+    name
+  }
   author {
     id
     slug
@@ -568,6 +582,163 @@ function makeSearchResult(
     query,
     query_type: type,
     source,
+  };
+}
+
+function coerceNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+}
+
+function hasText(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalizeSlugCandidate(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function rankAuthorCandidate(
+  candidate: Record<string, unknown>,
+  expectedSlug: string,
+): number {
+  let score = 0;
+
+  if (candidate.state === "active") {
+    score += 1_000_000;
+  }
+
+  if (candidate.canonical_id === null || candidate.canonical_id === undefined) {
+    score += 500_000;
+  }
+
+  if (candidate.slug === expectedSlug) {
+    score += 250_000;
+  }
+
+  score += coerceNumber(candidate.books_count) * 1_000;
+  score += coerceNumber(candidate.users_count) * 10;
+
+  if (hasText(candidate.bio)) {
+    score += 100;
+  }
+
+  if (candidate.born_year !== null && candidate.born_year !== undefined) {
+    score += 10;
+  }
+
+  return score;
+}
+
+function rankSeriesCandidate(
+  candidate: Record<string, unknown>,
+  expectedSlug: string,
+): number {
+  let score = 0;
+
+  if (candidate.state === "active") {
+    score += 1_000_000;
+  }
+
+  if (candidate.canonical_id === null || candidate.canonical_id === undefined) {
+    score += 500_000;
+  }
+
+  if (candidate.slug === expectedSlug) {
+    score += 250_000;
+  }
+
+  score += coerceNumber(candidate.primary_books_count) * 1_000;
+  score += coerceNumber(candidate.books_count) * 100;
+
+  if (hasText(candidate.description)) {
+    score += 25;
+  }
+
+  return score;
+}
+
+function buildAuthorAlternative(candidate: Record<string, unknown>): JsonRecord {
+  return {
+    id: candidate.id ?? null,
+    slug: candidate.slug ?? null,
+    name: candidate.name ?? null,
+    state: candidate.state ?? null,
+    canonical_id: candidate.canonical_id ?? null,
+    books_count: candidate.books_count ?? null,
+    users_count: candidate.users_count ?? null,
+  };
+}
+
+function buildSeriesAlternative(candidate: Record<string, unknown>): JsonRecord {
+  return {
+    id: candidate.id ?? null,
+    slug: candidate.slug ?? null,
+    name: candidate.name ?? null,
+    state: candidate.state ?? null,
+    canonical_id: candidate.canonical_id ?? null,
+    books_count: candidate.books_count ?? null,
+    primary_books_count: candidate.primary_books_count ?? null,
+  };
+}
+
+function annotateNameSelection(
+  selected: Record<string, unknown> | null,
+  alternatives: JsonRecord[],
+): Record<string, unknown> | null {
+  if (!selected || alternatives.length === 0) {
+    return selected;
+  }
+
+  return {
+    ...selected,
+    _selection: {
+      alternatives,
+      candidate_count: alternatives.length + 1,
+      matched_by: "name",
+    },
+  };
+}
+
+function selectBestCandidate(
+  candidates: Array<Record<string, unknown>>,
+  scorer: (candidate: Record<string, unknown>) => number,
+): {
+  alternatives: JsonRecord[];
+  selected: Record<string, unknown> | null;
+} {
+  const ranked = [...candidates]
+    .map((candidate) => ({
+      candidate,
+      score: scorer(candidate),
+    }))
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+
+      return coerceNumber(left.candidate.id) - coerceNumber(right.candidate.id);
+    });
+
+  return {
+    alternatives: ranked.slice(1, 4).map(({ candidate }) => candidate),
+    selected: ranked[0]?.candidate ?? null,
   };
 }
 
@@ -1433,6 +1604,35 @@ export function registerHardcoverTools(
         ["name", name],
       ]);
 
+      if (name) {
+        const response = await client.query<AuthorsResponse>(
+          /* GraphQL */ `
+            query GetAuthorByName($name: String!, $booksLimit: Int!) {
+              authors(where: { name: { _eq: $name } }, limit: 10) {
+                ${AUTHOR_FIELDS}
+              }
+            }
+          `,
+          {
+            booksLimit,
+            name,
+          },
+        );
+
+        const { alternatives, selected } = selectBestCandidate(
+          response.authors as Array<Record<string, unknown>>,
+          (candidate) => rankAuthorCandidate(candidate, normalizeSlugCandidate(name)),
+        );
+
+        return makeTextResult(
+          "Hardcover author",
+          annotateNameSelection(
+            selected,
+            alternatives.map(buildAuthorAlternative),
+          ),
+        );
+      }
+
       const response = await client.query<AuthorsResponse>(
         /* GraphQL */ `
           query GetAuthor($where: authors_bool_exp!, $booksLimit: Int!) {
@@ -1645,6 +1845,35 @@ export function registerHardcoverTools(
         ["slug", slug],
         ["name", name],
       ]);
+
+      if (name) {
+        const response = await client.query<SeriesResponse>(
+          /* GraphQL */ `
+            query GetSeriesByName($name: String!, $booksLimit: Int!) {
+              series(where: { name: { _eq: $name } }, limit: 10) {
+                ${SERIES_FIELDS}
+              }
+            }
+          `,
+          {
+            booksLimit,
+            name,
+          },
+        );
+
+        const { alternatives, selected } = selectBestCandidate(
+          response.series as Array<Record<string, unknown>>,
+          (candidate) => rankSeriesCandidate(candidate, normalizeSlugCandidate(name)),
+        );
+
+        return makeTextResult(
+          "Hardcover series",
+          annotateNameSelection(
+            selected,
+            alternatives.map(buildSeriesAlternative),
+          ),
+        );
+      }
 
       const response = await client.query<SeriesResponse>(
         /* GraphQL */ `
