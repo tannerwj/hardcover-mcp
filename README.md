@@ -1,5 +1,8 @@
 # hardcover-mcp
 
+[![CI](https://github.com/tannerwj/hardcover-mcp/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/tannerwj/hardcover-mcp/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/hardcover-mcp)](https://www.npmjs.com/package/hardcover-mcp)
+
 MCP server for the [Hardcover GraphQL API](https://docs.hardcover.app/api/getting-started/).
 
 ## Features
